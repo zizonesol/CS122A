@@ -1,0 +1,145 @@
+/* GroupID: 53 */
+/* SID1: 70542151, NAME: Jennynhung Nguyen */ 1, 4, 8, 9
+/* SID2: 94552281, NAME: David Park */ 3, 6, 7
+/* SID3: 70384517, NAME: Duyen Pham */ 2, 5, 10
+
+
+
+Execute:
+> SELECT pid, max(timestampdiff(SECOND, actual_departure_datetime, actual_arrival_datetime)) AS max_actual_duration
+FROM (SELECT P.pid, F.actual_departure_datetime, F.actual_arrival_datetime
+FROM pilot_operates_flight P JOIN flight F
+ON P.flight_number = F.flight_number AND P.projected_departure_datetime = F.projected_departure_datetime) AS actual_datetimes
+GROUP BY pid /*  Q1  */
+
++ -------- + ------------------------ +
+| pid      | max_actual_duration      |
++ -------- + ------------------------ +
+| 990201   | 43320                    |
+| 990202   | 43320                    |
+| 990203   | 39720                    |
+| 990204   | 41520                    |
+| 990205   | 39720                    |
+| 990206   | 43320                    |
++ -------- + ------------------------ +
+6 rows
+
+
+
+
+Execute:
+> SELECT D.lid AS Lounge, count(Amex.cid) AS AmexCustomers FROM DishOrder D
+LEFT OUTER JOIN (SELECT cid FROM Credit_Card WHERE length(card_number) = 15) AS Amex
+    ON D.cid = Amex.cid
+GROUP BY D.lid /*  Q2  */
+
++ ----------- + ------------------ +
+| Lounge  	| AmexCustomers  	|
++ ----------- + ------------------ +
+| 84      	| 0              	|
+| 112     	| 0              	|
+| 113     	| 0              	|
+| 212     	| 2              	|
+| 213     	| 1              	|
+| 314     	| 1              	|
+| 315     	| 0              	|
+| 404     	| 0              	|
+| 409     	| 0              	|
+| 501     	| 0              	|
+| 601     	| 0              	|
++ ----------- + ------------------ +
+11 rows
+
+
+
+Execute:
+> SELECT c.cid
+FROM Customer c, DishOrder d, Lounge l
+WHERE c.cid = d.cid AND l.lid = d.lid
+GROUP BY c.cid
+HAVING SUM(d.total_amount) > 100 AND COUNT(DISTINCT l.airport_IATA_code) = (SELECT COUNT(IATA_code) FROM Airport) /* Q3 */
+
++ -------- +
+| cid      |
++ -------- +
+| 1        |
++ -------- +
+1 rows
+
+
+
+Execute:
+> SELECT flight_number, projected_departure_datetime
+FROM (SELECT flight_number, projected_departure_datetime, sum(quantity) as capacity, aiplane_registration_number
+	FROM (SELECT *
+			FROM (SELECT flight_number, projected_departure_datetime, quantity
+				FROM Customer_Reserves_Flight) AS Reservations NATURAL JOIN
+				(SELECT flight_number, projected_departure_datetime, aiplane_registration_number
+					FROM Flight) AS Flight
+			ORDER BY projected_departure_datetime) AS Reserved_Flights
+	GROUP BY projected_departure_datetime, flight_number,aiplane_registration_number) 
+					AS All_Reservations NATURAL JOIN Airplane  /* Q4 */
+
++ ------------------ + --------------------------------- +
+| flight_number      | projected_departure_datetime      |
++ ------------------ + --------------------------------- +
+| U987               | 2015-07-07 10:23:00               |
+| N124               | 2015-10-07 08:21:00               |
++ ------------------ + --------------------------------- +
+2 rows
+
+
+
+ALTER TABLE Credit_Card
+ADD CONSTRAINT `DeleteCredit`
+    FOREIGN KEY (`cid`) REFERENCES `Customer` (`cid`) ON DELETE CASCADE /*  Q5  */
+
+
+
+CREATE VIEW Flights_offered_view(flight_number, departure_airport_IATA_code, arrival_airport_IATA_code)
+	AS
+SELECT DISTINCT flight_number, departure_airport_IATA_code, arrival_airport_IATA_code
+FROM Flight /*  Q6  */
+
+
+
+
+The view table cannot be updated because the distinct operator creates a restriction the updatable view tables. By default, SQL does not eliminate duplicate copies of rows from the result of a query; the DISTINCT operator requires duplicate operation /*  Q7  */
+
+
+
+
+GRANT SELECT ON Flights_offered_view TO futurecustomer WITH GRANT OPTION /*  Q8  */
+
+
+
+DELIMITER $$
+
+CREATE TRIGGER DishUpdate
+AFTER INSERT
+ON DishOrder_Contains_Dish
+FOR EACH ROW
+BEGIN
+    IF (NEW.oid = DishOrder.oid) THEN
+   	 UPDATE DishOrder
+   	 SET DishOrder.total_amount = (NEW.quantity * Dish.price) + DishOrder.total_amount
+   	 WHERE DishOrder.oid = NEW.oid;
+    END IF;
+END$$
+
+DELIMITER ; /*  Q9  */;
+
+
+
+(1)  M -> N
+(2)  NL -> PQ
+(3)  MQR -> S
+(4)  ML -> NL	(1, Augmentation)
+(5)  ML -> PQ	(2, 4, Transitivity)
+(6)  MLR -> PQR  (5, Augmentation)
+(7)  MLR -> MPQR (6, Augmentation)
+(8)  MLR -> MQR  (7, Decomposition)
+(9)  MLR -> P	(7, Decomposition)
+(10) MLR -> S	(3, 9, Transitivity)
+(11) MLR -> PS   (9, 10, Union) /*  Q10  */
+

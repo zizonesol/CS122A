@@ -1,0 +1,227 @@
+
+/* GroupID: 53 */
+/* SID1: 70542151, NAME: Jennynhung Nguyen */
+/* SID2: 94552281, NAME: David Park */
+/* SID3: 70384517, NAME: Duyen Pham */
+
+
+
+Execute:
+> SELECT a.IATA_code, COUNT(l.airport_IATA_code) as lCount
+FROM Airport a, Lounge l
+WHERE l.airport_IATA_code = a.IATA_code
+GROUP BY a.IATA_code /*  Q1  */
++-------------+------------+
+|  IATA_code  |   lCount   |
++-------------+------------+
+|    JFK      |      2     |
+|    LAX      |      1     |
+|    SAT      |      2     |
+|    SFO      |      3     |
+|    SJC      |      1     |
+|    SNA      |      2     |
++-------------+------------+
+6 rows
+
+
+
+Execute:
+> SELECT flight_number, timestampdiff(SECOND, actual_departure_datetime, actual_arrival_datetime) AS actual_duration
+FROM Flight
+WHERE projected_departure_datetime =
+	(SELECT max(projected_departure_datetime)
+    FROM Flight) /* Q2 */
+
++ ------------------ + -------------------- +
+| flight_number      | actual_duration      |
++ ------------------ + -------------------- +
+| UC2084             | 8100                 |
++ ------------------ + -------------------- +
+1 rows
+
+
+
+Execute:
+> SELECT max(abs(timestampdiff(SECOND, actual_departure_datetime, actual_arrival_datetime)
+ - timestampdiff(SECOND, projected_departure_datetime, projected_arrival_datetime))) as maxAbsDiff
+    FROM Flight /* Q3 */
+
++ --------------- +
+| maxAbsDiff      |
++ --------------- +
+| 3600            |
++ --------------- +
+1 rows
+
+
+
+Execute:
+> SELECT Duration.flight_number, min(projected_flight_duration) AS MinProjDur, 
+	max(projected_flight_duration) AS MaxProjDur, 
+    min(actual_flight_duration) AS MinActDur, 
+    max(actual_flight_duration) AS MaxActDur
+FROM (SELECT flight_number,
+	abs(timestampdiff(SECOND, projected_arrival_datetime, projected_departure_datetime)) as projected_flight_duration,
+	abs(timestampdiff(SECOND, actual_arrival_datetime, actual_departure_datetime)) as actual_flight_duration
+    FROM CS122a.Flight) AS Duration
+GROUP BY Duration.flight_number /* Q4 */
+
++ ------------------ + --------------- + --------------- + -------------- + -------------- +
+| flight_number      | MinProjDur      | MaxProjDur      | MinActDur      | MaxActDur      |
++ ------------------ + --------------- + --------------- + -------------- + -------------- +
+| N124               | 1200            | 1200            | 1200           | 1800           |
+| U987               | 39600           | 39600           | 39600          | 39720          |
+| UC2084             | 4500            | 4500            | 3300           | 8100           |
+| UC6024             | 6300            | 6300            | 5400           | 6600           |
+| UC725              | 3600            | 3600            | 3600           | 3600           |
++ ------------------ + --------------- + --------------- + -------------- + -------------- +
+5 rows
+
+
+
+Execute:
+> SELECT pid, COUNT(flight_number) AS maxFlight
+FROM Pilot_Operates_Flight
+GROUP BY pid 
+HAVING maxFlight = (SELECT MAX(flight_count)
+			FROM (SELECT pid, COUNT(flight_number) AS flight_count
+				FROM Pilot_Operates_Flight
+                      GROUP BY pid) temp) /*  Q5  */
+
++ -------- + -------------- +
+| pid      | maxFlight      |
++ -------- + -------------- +
+| 990201   | 23             |
++ -------- + -------------- +
+1 rows
+
+
+
+Execute:
+> SELECT l.lid, TRUNCATE(AVG(d.price),2) AS loungeAvg
+FROM Dish d, Lounge l
+WHERE l.lid = d.lid
+GROUP BY l.lid
+HAVING loungeAvg > (SELECT AVG(price) FROM Dish) /*  Q6  */
+
++ -------- + -------------- +
+| lid      | loungeAvg      |
++ -------- + -------------- +
+| 212      | 26.09          |
+| 213      | 21.37          |
+| 315      | 36.01          |
++ -------- + -------------- +
+3 rows
+
+
+
+Execute:
+> SELECT D.oid, D.name, D.quantity
+FROM DishOrder_Contains_Dish D, (SELECT oid, count(*) as DishCnt 
+						FROM DishOrder_Contains_Dish
+						GROUP BY oid) AS Orders
+WHERE  D.oid = Orders.oid AND DishCnt >= 2  /* Q7 */
+
++ -------- + --------- + ------------- +
+| oid      | name      | quantity      |
++ -------- + --------- + ------------- +
+| 3        | salmon    | 3             |
+| 3        | swordfish | 5             |
+| 4        | fresh lemonade | 2             |
+| 4        | sandwich  | 2             |
+| 4        | the thai wrap | 2             |
+| 5        | galbitang | 4             |
+| 5        | samgyetang | 3             |
+| 8        | hummus    | 10            |
+| 8        | the burger combo | 5             |
+| 8        | the karma burger | 3             |
+| 12       | salmon    | 20            |
+| 12       | skewered shrimp | 20            |
+| 12       | swordfish | 20            |
++ -------- + --------- + ------------- +
+13 rows
+
+
+
+Execute:
+> SELECT c.cid, SUM(r.purchased_price * r.quantity) AS total_price
+FROM Customer c LEFT OUTER JOIN Customer_Reserves_Flight r ON c.cid = r.cid
+GROUP BY c.cid
+ORDER BY c.cid ASC  /*  Q8  */
+
++ -------- + ---------------- +
+| cid      | total_price      |
++ -------- + ---------------- +
+| 1        | 4448.10          |
+| 2        | 137.22           |
+| 3        | 500.00           |
+| 4        | 2000.00          |
+| 5        | 1200.00          |
+| 6        | 125.00           |
+| 7        | 150.00           |
+| 8        | 25000.00         |
+| 9        | 33600.00         |
+| 10       | 580.00           |
+| 11       |                  |
+| 12       |                  |
+| 13       | 11284.00         |
+| 14       | 473.00           |
+| 15       | 47300.00         |
+| 16       | 28240.00         |
+| 17       | 232149.12        |
+| 18       | 7861.70          |
+| 19       | 7861.70          |
+| 20       | 420.98           |
++ -------- + ---------------- +
+20 rows
+
+
+
+Execute:
+> SELECT a.IATA_code, COUNT(d.oid) AS order_count
+FROM Airport a JOIN Lounge l 
+	ON a.IATA_code = l.airport_IATA_code LEFT OUTER JOIN DishOrder d 
+    ON l.lid = d.lid
+GROUP BY a.IATA_code
+ORDER BY a.IATA_code ASC /*  Q9  */
+
++ -------------- + ---------------- +
+| IATA_code      | order_count      |
++ -------------- + ---------------- +
+| JFK            | 4                |
+| LAX            | 1                |
+| SAT            | 5                |
+| SFO            | 0                |
+| SJC            | 0                |
+| SNA            | 4                |
++ -------------- + ---------------- +
+6 rows
+
+
+
+Execute:
+> SELECT l.lid, l.airport_IATA_code AS IATA_Code,
+    count(d.lid) AS NumDishes, min(d.price) AS LowPrice,
+	max(d.price) AS HighPrice, truncate(avg(d.price), 2) AS AvgPrice
+FROM Lounge l
+LEFT OUTER JOIN Dish d ON d.lid = l.lid
+GROUP BY l.lid
+ORDER BY l.lid  /* Q10 */
+
++ -------- + -------------- + -------------- + ------------- + -------------- + ------------- +
+| lid      | IATA_Code      | NumDishes      | LowPrice      | HighPrice      | AvgPrice      |
++ -------- + -------------- + -------------- + ------------- + -------------- + ------------- +
+| 112      | SNA            | 4              | 6.50          | 19.00          | 10.23         |
+| 113      | SNA            | 4              | 10.50         | 31.50          | 16.25         |
+| 212      | SAT            | 5              | 10.99         | 49.00          | 26.09         |
+| 213      | SAT            | 4              | 12.00         | 35.50          | 21.37         |
+| 314      | JFK            | 4              | 11.99         | 29.99          | 17.74         |
+| 315      | JFK            | 5              | 13.99         | 97.10          | 36.01         |
+| 409      | LAX            | 4              | 11.00         | 16.99          | 13.49         |
+| 501      | SFO            | 1              | 19.12         | 19.12          | 19.12         |
+| 502      | SFO            | 1              | 17.12         | 17.12          | 17.12         |
+| 503      | SFO            | 1              | 13.12         | 13.12          | 13.12         |
+| 601      | SJC            | 0              |               |                |               |
++ -------- + -------------- + -------------- + ------------- + -------------- + ------------- +
+11 rows
+
